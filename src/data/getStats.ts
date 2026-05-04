@@ -107,6 +107,13 @@ export async function getStats(
       const dayStats = await getDayStats(day)
       newStats += dayStats.length
 
+      // If the API returned no data, skip marking as loaded so we retry next run.
+      // This handles the case where Slack's analytics data isn't ready yet for a recent day.
+      if (dayStats.length === 0) {
+        console.log(`  No data returned for ${day.toString()}, will retry next run`)
+        return
+      }
+
       // Ensure that all users are in the database
       const userIDs = [...new Set(dayStats.map((day) => day.user_id)).values()]
       const addedIDs = await ensureUsersInDatabase(userIDs)
