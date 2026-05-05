@@ -31,7 +31,7 @@
   "homepage": "https://github.com/jeremy46231/slack-leaderboard#readme",
   "license": "MIT",
   "scripts": {
-    "generate": "prisma generate",
+    "generate": "prisma generate --sql",
     "migrate": "prisma migrate dev"
   },
   "type": "module"
