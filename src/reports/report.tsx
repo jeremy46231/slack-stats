@@ -1,13 +1,14 @@
 import { Temporal } from 'temporal-polyfill'
 import type { ReactNode } from 'react'
-import { db, mostRecentStatDate, oldestStatDate } from '../data/database'
+import { db, mostRecentStatDate, oldestStatDate } from '../data/database.ts'
 import { getCachedUser } from '../data/users.ts'
-import { jsDateToPlainDate } from '../helpers'
-import { makeCalendar } from './calendar'
-import { renderImage } from './image'
-import { makeChart } from './chart'
-import { makeStatsWidget } from './stats'
-import { parseReportRequest, type ReportMode } from './request'
+import { getLeaderboardAsOf } from '../data/streakLeaderboard.ts'
+import { jsDateToPlainDate } from '../helpers.ts'
+import { makeCalendar } from './calendar.tsx'
+import { renderImage } from './image.tsx'
+import { makeChart } from './chart.tsx'
+import { makeStatsWidget } from './stats.tsx'
+import { parseReportRequest, type ReportMode } from './request.ts'
 
 export type dayInfo = {
   date: Temporal.PlainDate
@@ -245,7 +246,14 @@ export async function generateReportImage(
 
   const { streakLength, streakStartDate, streakLongerThanMax } =
     calculateStreak(activityByDate, endDate)
-  const avatarSrc = await inlineImage(user.profile_picture)
+  const [streakRankEntry, avatarSrc] = await Promise.all([
+    streakLength > 0
+      ? getLeaderboardAsOf(endDate).then(
+          (lb) => lb.find((e) => e.user_id === userId) ?? null
+        )
+      : Promise.resolve(null),
+    inlineImage(user.profile_picture),
+  ])
   const statsElement = makeStatsWidget(userDays)
   const showMissingDataWarning = shouldShowMissingDataWarning(userDays)
 
@@ -384,15 +392,22 @@ export async function generateReportImage(
               {getUserLabel(user)}
             </span>
             <span style={{ fontSize: 14, color: '#555' }}>
-              Current streak: {streakLongerThanMax ? 'at least ' : ''}
-              {streakLength} days (
-              {streakLongerThanMax ? 'no data before ' : 'since '}
-              {streakStartDate.toLocaleString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })}
-              )
+              {streakLength === 0 ? (
+                'No current streak'
+              ) : (
+                <>
+                  Current streak: {streakLongerThanMax ? 'at least ' : ''}
+                  {streakLength} days (
+                  {streakRankEntry ? `#${streakRankEntry.rank}, ` : ''}
+                  {streakLongerThanMax ? 'no data before ' : 'since '}
+                  {streakStartDate.toLocaleString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                  )
+                </>
+              )}
             </span>
           </div>
         </div>
